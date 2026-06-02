@@ -24,12 +24,10 @@ class DatasetLoader(ABC):
         self.max_instances = config.get("max_instances", 0)
 
     @abstractmethod
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
     @abstractmethod
-    def load(self, data_path: str) -> list[TaskInstance]:
-        ...
+    def load(self, data_path: str) -> list[TaskInstance]: ...
 
     def _limit(self, instances: list[TaskInstance]) -> list[TaskInstance]:
         if self.max_instances and self.max_instances > 0:

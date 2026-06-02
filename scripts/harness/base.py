@@ -20,7 +20,9 @@ class HarnessAdapter(ABC):
         self.llm_config = config.get("llm", {})
 
     @abstractmethod
-    def prepare_command(self, prompt: str, repo_path: Path, output_file: Path) -> list[str]:
+    def prepare_command(
+        self, prompt: str, repo_path: Path, output_file: Path
+    ) -> list[str]:
         """Build the non-interactive CLI invocation."""
         ...
 
@@ -29,7 +31,9 @@ class HarnessAdapter(ABC):
         """Extract structured data from harness stdout."""
         ...
 
-    def run(self, instance_id: str, prompt: str, repo_path: Path, work_dir: Path) -> TaskMetrics:
+    def run(
+        self, instance_id: str, prompt: str, repo_path: Path, work_dir: Path
+    ) -> TaskMetrics:
         metrics = TaskMetrics(
             instance_id=instance_id,
             harness=self.name,
@@ -71,7 +75,9 @@ class HarnessAdapter(ABC):
                 metrics.error = result.stderr[:500]
 
         except subprocess.TimeoutExpired:
-            metrics.error = f"Timeout after {self.hconfig.get('timeout_per_task', 600)}s"
+            metrics.error = (
+                f"Timeout after {self.hconfig.get('timeout_per_task', 600)}s"
+            )
         except Exception as exc:
             metrics.error = str(exc)
 

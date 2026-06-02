@@ -9,15 +9,22 @@ class OpenCodeAdapter:
         self.hconfig = config.get("harness", {}).get("opencode", {})
         self.llm_config = config.get("llm", {})
 
-    def prepare_command(self, prompt: str, repo_path: Path, output_file: Path) -> list[str]:
+    def prepare_command(
+        self, prompt: str, repo_path: Path, output_file: Path
+    ) -> list[str]:
         return [
             self.hconfig.get("entrypoint", "opencode"),
             "--non-interactive",
-            "--model", self.llm_config.get("model", "gpt-4o"),
-            "--max-tokens", str(self.llm_config.get("max_tokens", 4096)),
-            "--temperature", str(self.llm_config.get("temperature", 0.0)),
-            "--output", str(output_file),
-            "--workspace", str(repo_path),
+            "--model",
+            self.llm_config.get("model", "gpt-4o"),
+            "--max-tokens",
+            str(self.llm_config.get("max_tokens", 4096)),
+            "--temperature",
+            str(self.llm_config.get("temperature", 0.0)),
+            "--output",
+            str(output_file),
+            "--workspace",
+            str(repo_path),
             prompt,
         ]
 

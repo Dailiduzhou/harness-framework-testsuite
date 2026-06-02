@@ -12,9 +12,13 @@ from rich.table import Table
 
 @click.command()
 @click.option("--summary", is_flag=True, help="Print summary of latest results")
-@click.option("--history", is_flag=True, help="Print full history from results directory")
+@click.option(
+    "--history", is_flag=True, help="Print full history from results directory"
+)
 @click.option("--results-dir", default="results", help="Path to results directory")
-@click.option("--file", "result_file", default=None, help="Specific result file to analyze")
+@click.option(
+    "--file", "result_file", default=None, help="Specific result file to analyze"
+)
 def main(summary: bool, history: bool, results_dir: str, result_file: str | None):
     console = Console()
 
@@ -27,7 +31,9 @@ def main(summary: bool, history: bool, results_dir: str, result_file: str | None
         console.print("[red]No results directory found.[/red] Run tests first.")
         return
 
-    json_files = sorted(results_path.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    json_files = sorted(
+        results_path.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+    )
 
     if not json_files:
         console.print("[yellow]No result files found.[/yellow]")
@@ -47,7 +53,9 @@ def _print_result(console: Console, filepath: Path) -> None:
     results = data.get("results", [])
 
     console.print(f"\n[bold]Results: {filepath.name}[/bold]")
-    console.print(f"Dataset: {run_info.get('dataset')} | Harness: {run_info.get('harness')} | Time: {run_info.get('timestamp')}")
+    console.print(
+        f"Dataset: {run_info.get('dataset')} | Harness: {run_info.get('harness')} | Time: {run_info.get('timestamp')}"
+    )
 
     table = Table(title="Metrics Summary")
     table.add_column("Harness", style="cyan")

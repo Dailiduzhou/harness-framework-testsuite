@@ -35,7 +35,9 @@ HARNESS_ADAPTERS = {
 def _get_harness_adapters(harness_arg: str, config: dict) -> list:
     """Resolve harness argument to list of adapter instances."""
     if harness_arg == "all":
-        names = [k for k, v in config.get("harness", {}).items() if v.get("enabled", True)]
+        names = [
+            k for k, v in config.get("harness", {}).items() if v.get("enabled", True)
+        ]
     else:
         names = [h.strip() for h in harness_arg.split(",")]
 
@@ -72,7 +74,14 @@ def _run_task(task: TaskInstance, adapter, config: dict) -> TaskMetrics:
 @click.option("--timeout", default=3600, type=int, help="Total timeout in seconds")
 @click.option("--data-dir", default=None, help="Override dataset data directory")
 @click.option("--output-dir", default=None, help="Override results output directory")
-def main(dataset: str, harness: str, max_workers: int, timeout: int, data_dir: str | None, output_dir: str | None):
+def main(
+    dataset: str,
+    harness: str,
+    max_workers: int,
+    timeout: int,
+    data_dir: str | None,
+    output_dir: str | None,
+):
     config = load_config()
 
     output_cfg = config.get("output", {})
@@ -84,7 +93,9 @@ def main(dataset: str, harness: str, max_workers: int, timeout: int, data_dir: s
 
     loader_cls = DATASET_LOADERS.get(dataset)
     if loader_cls is None:
-        click.echo(f"Unknown dataset: {dataset}. Available: {list(DATASET_LOADERS)}", err=True)
+        click.echo(
+            f"Unknown dataset: {dataset}. Available: {list(DATASET_LOADERS)}", err=True
+        )
         sys.exit(1)
 
     loader = loader_cls(ds_config)
@@ -92,7 +103,9 @@ def main(dataset: str, harness: str, max_workers: int, timeout: int, data_dir: s
 
     if not instances:
         click.echo(f"No instances found for dataset '{dataset}' at {ds_path}", err=True)
-        click.echo("Add .json/.jsonl files to the data directory or use --data-dir to override.")
+        click.echo(
+            "Add .json/.jsonl files to the data directory or use --data-dir to override."
+        )
         sys.exit(1)
 
     click.echo(f"Loaded {len(instances)} instances from {dataset}")
@@ -135,7 +148,9 @@ def main(dataset: str, harness: str, max_workers: int, timeout: int, data_dir: s
                         f"time={m.execution_time_s:.1f}s)"
                     )
                 except Exception as exc:
-                    click.echo(f"  [{completed}/{total}] {inst.instance_id} -> ERROR: {exc}")
+                    click.echo(
+                        f"  [{completed}/{total}] {inst.instance_id} -> ERROR: {exc}"
+                    )
 
         result = SuiteResult(
             harness=adapter.name,
@@ -161,10 +176,20 @@ def main(dataset: str, harness: str, max_workers: int, timeout: int, data_dir: s
         s = result.summary()
         click.echo(f"\n  {adapter.name} summary:")
         for k in [
-            "total", "passed", "resolved", "errors", "build_errors",
-            "pass@1", "resolve_rate", "build_rate",
-            "total_tokens", "total_api_calls", "total_time_s",
-            "avg_tokens_per_task", "avg_api_calls_per_task", "avg_time_per_task",
+            "total",
+            "passed",
+            "resolved",
+            "errors",
+            "build_errors",
+            "pass@1",
+            "resolve_rate",
+            "build_rate",
+            "total_tokens",
+            "total_api_calls",
+            "total_time_s",
+            "avg_tokens_per_task",
+            "avg_api_calls_per_task",
+            "avg_time_per_task",
         ]:
             click.echo(f"    {k}: {s[k]}")
 
