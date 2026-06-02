@@ -8,14 +8,22 @@ DATASET ?= swebench-lite
 HARNESS ?= all
 MAX_WORKERS ?= 4
 TIMEOUT ?= 3600
+APT_MIRROR ?= mirrors.aliyun.com
+PIP_INDEX ?= https://mirrors.aliyun.com/pypi/simple/
 
 # ——— Build ——————————————————————————————————————————————
 
 build: ## Build the Docker image
-	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	docker build \
+		--build-arg APT_MIRROR=$(APT_MIRROR) \
+		--build-arg PIP_INDEX=$(PIP_INDEX) \
+		-t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 build-nocache: ## Build without cache
-	docker build --no-cache -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	docker build --no-cache \
+		--build-arg APT_MIRROR=$(APT_MIRROR) \
+		--build-arg PIP_INDEX=$(PIP_INDEX) \
+		-t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 # ——— Test ————————————————————————————————————————————————
 
