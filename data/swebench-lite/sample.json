@@ -1,0 +1,23 @@
+[
+  {
+    "instance_id": "sample-001",
+    "repo": "example/test-repo",
+    "problem_statement": "Fix the null pointer exception in UserService.getUser() when userId is not found. Return Optional.empty() instead of throwing.",
+    "base_commit": "abc123",
+    "test_patch": "diff --git a/src/test/UserServiceTest.java b/src/test/UserServiceTest.java\n+    @Test\n+    void getUser_notFound_returnsEmpty() {\n+        assertThat(userService.getUser(\"nonexistent\")).isEmpty();\n+    }"
+  },
+  {
+    "instance_id": "sample-002",
+    "repo": "example/test-repo",
+    "problem_statement": "Add input validation to the POST /api/users endpoint. Validate that email field is non-empty and matches email format.",
+    "base_commit": "abc123",
+    "test_patch": "diff --git a/src/test/UserControllerTest.java b/src/test/UserControllerTest.java\n+    @Test\n+    void createUser_invalidEmail_returns400() {\n+        mockMvc.perform(post(\"/api/users\").content(\"{\\\"email\\\":\\\"invalid\\\"}\"))\n+            .andExpect(status().isBadRequest());\n+    }"
+  },
+  {
+    "instance_id": "sample-003",
+    "repo": "example/test-repo",
+    "problem_statement": "Optimize the SQL query in OrderRepository.findPendingOrders() to avoid N+1 queries. Use a JOIN FETCH to eagerly load order items.",
+    "base_commit": "abc123",
+    "test_patch": "diff --git a/src/test/OrderRepositoryTest.java b/src/test/OrderRepositoryTest.java\n+    @Test\n+    void findPendingOrders_usesSingleQuery() {\n+        List<Order> orders = orderRepo.findPendingOrders();\n+        assertThat(countQueries()).isEqualTo(1);\n+    }"
+  }
+]

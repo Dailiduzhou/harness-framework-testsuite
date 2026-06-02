@@ -1,0 +1,16 @@
+[
+  {
+    "instance_id": "rb-001",
+    "repo": "example/repo-bench-repo",
+    "task_description": "Implement a LRU cache with O(1) get and put operations",
+    "base_commit": "def456",
+    "test_patch": "def test_lru_cache():\n    cache = LRUCache(2)\n    cache.put(1, 1)\n    cache.put(2, 2)\n    assert cache.get(1) == 1\n    cache.put(3, 3)\n    assert cache.get(2) == -1"
+  },
+  {
+    "instance_id": "rb-002",
+    "repo": "example/repo-bench-repo",
+    "task_description": "Add rate limiting middleware that allows max 100 requests per minute per IP",
+    "base_commit": "def456",
+    "test_patch": "def test_rate_limiter():\n    limiter = RateLimiter(max_req=100, window=60)\n    for _ in range(100):\n        assert limiter.allow('1.2.3.4') == True\n    assert limiter.allow('1.2.3.4') == False"
+  }
+]

@@ -1,0 +1,41 @@
+# Harness test suite configuration
+# Copy to config/local.yaml and override for your environment
+
+llm:
+  provider: openai          # openai | anthropic | openrouter
+  api_key: ${LLM_API_KEY}   # resolved from env var
+  api_base: ${LLM_API_BASE:-}
+  model: gpt-4o
+  max_tokens: 4096
+  temperature: 0.0           # deterministic for benchmarking
+  request_delay: 0.1         # seconds between API calls (reduce cache bias)
+
+harness:
+  opencode:
+    enabled: true
+    entrypoint: opencode
+    timeout_per_task: 600    # seconds
+  pi:
+    enabled: true
+    entrypoint: pi
+    timeout_per_task: 600    # seconds
+
+datasets:
+  swebench-lite:
+    path: data/swebench-lite
+    max_instances: 0         # 0 = all
+  repobench:
+    path: data/repobench
+    max_instances: 0
+
+execution:
+  max_workers: 4
+  retry_count: 2
+  retry_delay: 5
+  sandbox: docker            # docker | local
+  sandbox_image: harness-sandbox:latest
+
+output:
+  results_dir: results
+  format: json               # json | csv | both
+  verbose: false
