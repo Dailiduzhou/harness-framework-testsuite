@@ -25,6 +25,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 ARG APT_MIRROR=mirrors.aliyun.com
 ARG PIP_INDEX=https://mirrors.aliyun.com/pypi/simple/
+ARG DEEPSEEK_API_KEY
+ENV DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
 
 RUN if [ -n "${APT_MIRROR}" ]; then \
   sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || \

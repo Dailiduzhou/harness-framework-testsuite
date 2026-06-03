@@ -16,6 +16,7 @@ APT_MIRROR ?= mirrors.aliyun.com
 PIP_INDEX ?= https://mirrors.aliyun.com/pypi/simple/
 OPENCODE_VERSION ?= 1.15.13
 PI_VERSION ?= 0.78.0
+DEEPSEEK_API_KEY ?=
 
 # ——— Local dev (uv) ——————————————————————————————————————
 
@@ -62,6 +63,7 @@ build: ## Build the Docker image
 		--build-arg PIP_INDEX=$(PIP_INDEX) \
 		--build-arg OPENCODE_VERSION=$(OPENCODE_VERSION) \
 		--build-arg PI_VERSION=$(PI_VERSION) \
+		--build-arg DEEPSEEK_API_KEY=$(DEEPSEEK_API_KEY) \
 		-t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 build-nocache: ## Build without cache
@@ -70,6 +72,7 @@ build-nocache: ## Build without cache
 		--build-arg PIP_INDEX=$(PIP_INDEX) \
 		--build-arg OPENCODE_VERSION=$(OPENCODE_VERSION) \
 		--build-arg PI_VERSION=$(PI_VERSION) \
+		--build-arg DEEPSEEK_API_KEY=$(DEEPSEEK_API_KEY) \
 		-t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 # ——— Test ————————————————————————————————————————————————
@@ -81,6 +84,7 @@ test: build ## Run full test suite (all harnesses, SWE-Bench Lite)
 		-v $(PWD)/config:/app/config:ro \
 		-v $(PWD)/data:/app/data:ro \
 		-e HARVEST_CONFIG_PATH=/app/$(CONFIG) \
+		-e DEEPSEEK_API_KEY \
 		$(IMAGE_NAME):$(IMAGE_TAG) \
 		python -m scripts.run_test \
 			--dataset $(DATASET) \
@@ -95,6 +99,7 @@ test-opencode: build ## Test only OpenCode harness
 		-v $(PWD)/config:/app/config:ro \
 		-v $(PWD)/data:/app/data:ro \
 		-e HARVEST_CONFIG_PATH=/app/$(CONFIG) \
+		-e DEEPSEEK_API_KEY \
 		$(IMAGE_NAME):$(IMAGE_TAG) \
 		python -m scripts.run_test \
 			--dataset $(DATASET) \
@@ -109,6 +114,7 @@ test-pi: build ## Test only Pi harness
 		-v $(PWD)/config:/app/config:ro \
 		-v $(PWD)/data:/app/data:ro \
 		-e HARVEST_CONFIG_PATH=/app/$(CONFIG) \
+		-e DEEPSEEK_API_KEY \
 		$(IMAGE_NAME):$(IMAGE_TAG) \
 		python -m scripts.run_test \
 			--dataset $(DATASET) \
@@ -123,6 +129,7 @@ test-repobench: build ## Test on RepoBench dataset
 		-v $(PWD)/config:/app/config:ro \
 		-v $(PWD)/data:/app/data:ro \
 		-e HARVEST_CONFIG_PATH=/app/$(CONFIG) \
+		-e DEEPSEEK_API_KEY \
 		$(IMAGE_NAME):$(IMAGE_TAG) \
 		python -m scripts.run_test \
 			--dataset repobench \
@@ -147,6 +154,7 @@ shell: build ## Open a shell in the test container
 		-v $(PWD)/config:/app/config:ro \
 		-v $(PWD)/data:/app/data:ro \
 		-e HARVEST_CONFIG_PATH=/app/$(CONFIG) \
+		-e DEEPSEEK_API_KEY \
 		$(IMAGE_NAME):$(IMAGE_TAG) \
 		/bin/bash
 
