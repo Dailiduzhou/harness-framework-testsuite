@@ -57,3 +57,11 @@ output:
   results_dir: results
   format: json               # json | csv | both
   verbose: false
+
+evaluation:
+  evaluator: sandbox     # self_report | sandbox
+  # --- sandbox evaluator options ---
+  mode: command               # command | container
+  command: "pytest --tb=short"  # shell command for 'command' mode
+  sandbox_image: python:3.11-slim  # Docker image for 'container' mode
+  timeout: 600

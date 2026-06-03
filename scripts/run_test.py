@@ -17,6 +17,7 @@ from scripts.config import load_config
 from scripts.dataset.base import TaskInstance
 from scripts.dataset.repobench import RepoBenchLoader
 from scripts.dataset.swebench_lite import SWEBenchLiteLoader
+from scripts.evaluators.base import get_evaluator
 from scripts.harness.opencode import OpenCodeAdapter
 from scripts.harness.pi import PiAdapter
 from scripts.metrics import SuiteResult, TaskMetrics
@@ -59,12 +60,18 @@ def _run_task(task: TaskInstance, adapter, config: dict) -> TaskMetrics:
         repo_path.mkdir()
 
         task.dataset = task.metadata.get("dataset", "") if task.metadata else ""
-        return adapter.run(
+        metrics = adapter.run(
             instance_id=task.instance_id,
             prompt=task.prompt,
             repo_path=repo_path,
             work_dir=work_dir,
         )
+
+        evaluator_name = config.get("evaluation", {}).get("evaluator", "self_report")
+        evaluator = get_evaluator(evaluator_name, config)
+        metrics = evaluator.evaluate(metrics, repo_path, work_dir)
+
+        return metrics
 
 
 @click.command()
