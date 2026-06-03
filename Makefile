@@ -13,6 +13,21 @@ PIP_INDEX ?= https://mirrors.aliyun.com/pypi/simple/
 OPENCODE_VERSION ?= 1.15.13
 PI_VERSION ?= 0.78.0
 
+# ——— Local dev (uv) ——————————————————————————————————————
+
+install: ## Install project + dev dependencies via uv
+	uv sync
+	uv sync --extra download
+
+download-swebench: ## Download SWE-Bench Lite dataset
+	uv run python scripts/download_datasets.py --dataset swebench-lite
+
+download-repobench: ## Download RepoBench dataset
+	uv run python scripts/download_datasets.py --dataset repobench
+
+download-datasets: ## Download all benchmark datasets
+	uv run python scripts/download_datasets.py --dataset all
+
 # ——— Build ——————————————————————————————————————————————
 
 build: ## Build the Docker image
