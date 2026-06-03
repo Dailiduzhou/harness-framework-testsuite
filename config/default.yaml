@@ -14,11 +14,32 @@ harness:
   opencode:
     enabled: true
     entrypoint: opencode
-    timeout_per_task: 600    # seconds
+    timeout_per_task: 600
+    # opencode <project> --model provider/model --prompt "..."
+    # {prompt} in args = prompt goes via CLI flag, NOT stdin
+    args:
+      - "{workspace}"
+      - "--model"
+      - "{provider}/{model}"
+      - "--prompt"
+      - "{prompt}"
+      - "--print-logs"
+      - "--log-level"
+      - "INFO"
   pi:
     enabled: true
     entrypoint: pi
-    timeout_per_task: 600    # seconds
+    timeout_per_task: 600
+    cwd: repo              # pi has no --workspace flag; use repo as cwd
+    # pi -p --provider openai --model gpt-4o --mode json  + prompt on stdin
+    args:
+      - "-p"
+      - "--provider"
+      - "{provider}"
+      - "--model"
+      - "{model}"
+      - "--mode"
+      - "json"
 
 datasets:
   swebench-lite:

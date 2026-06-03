@@ -219,28 +219,78 @@ Add new models by editing `PRICING` dict in `scripts/paper_analysis.py`.
 
 ## Harness Adapters
 
-Each harness is a thin adapter that wraps the CLI tool in non-interactive mode. Adapters inherit from `HarnessAdapter` (`scripts/harness/base.py`) which provides `run()` via `subprocess`.
+Each harness is invoked as a subprocess via `scripts/harness/base.py`.  The adapter
+generates a CLI command from the `args` template in `config/default.yaml` and delivers
+the task prompt via one of two channels:
 
-### OpenCode
+- **CLI flag**: if `args` contains `--prompt "{prompt}"`, the prompt is injected into argv (stdin disabled)
+- **stdin pipe**: otherwise the prompt is piped to subprocess stdin
 
-```
-opencode --non-interactive --model gpt-4o --max-tokens 4096 \
-  --temperature 0.0 --output /tmp/out.txt --workspace /path/to/repo \
-  "<prompt>"
+### OpenCode (CLI-flag mode)
+
+```bash
+opencode /path/to/repo \
+  --model openai/gpt-4o \
+  --prompt "Fix the null pointer..." \
+  --print-logs --log-level INFO
 ```
 
-### Pi
+Config (`config/default.yaml`):
+```yaml
+harness:
+  opencode:
+    entrypoint: opencode
+    args:
+      - "{workspace}"
+      - "--model"
+      - "{provider}/{model}"
+      - "--prompt"
+      - "{prompt}"
+      - "--print-logs"
+      - "--log-level"
+      - "INFO"
+```
 
+### Pi (stdin mode)
+
+```bash
+echo "Fix the null pointer..." | \
+  pi -p --provider openai --model gpt-4o --mode json
 ```
-pi --batch --model gpt-4o --max-tokens 4096 --temperature 0.0 \
-  --output-file /tmp/out.txt --repo /path/to/repo "<prompt>"
+
+Pi works on the current directory, so `cwd` is set to `repo_path`:
+
+```yaml
+harness:
+  pi:
+    entrypoint: pi
+    cwd: repo         # cwd = repo workspace directory
+    args:
+      - "-p"
+      - "--provider"
+      - "{provider}"
+      - "--model"
+      - "{model}"
+      - "--mode"
+      - "json"
 ```
+
+### Template variables
+
+| Placeholder | Source | Example |
+|-------------|--------|---------|
+| `{provider}` | `llm.provider` in config | `openai` |
+| `{model}` | `llm.model` in config | `gpt-4o` |
+| `{workspace}` | task repo path (temp dir) | `/tmp/ht_xxx/repo` |
+| `{repo}` | same as `{workspace}` | `/tmp/ht_xxx/repo` |
+| `{output}` | output file path | `/tmp/ht_xxx/output_xxx.txt` |
+| `{prompt}` | task problem statement | consumed by CLI-flag mode |
 
 ### Adding a new harness
 
-1. Create `scripts/harness/<name>.py` inheriting `HarnessAdapter` with `prepare_command()` and `parse_output()`.
+1. Create `scripts/harness/<name>.py` inheriting `HarnessAdapter` with `parse_output()`.
 2. Register in `scripts/run_test.py` → `HARNESS_ADAPTERS` dict.
-3. Add harness config block in `config/default.yaml`.
+3. Add harness config block in `config/default.yaml` with `entrypoint`, `args` template, and optional `cwd: repo`.
 
 ## Docker Build
 

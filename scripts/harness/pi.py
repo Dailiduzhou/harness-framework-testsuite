@@ -1,4 +1,8 @@
-"""Pi harness adapter — non-interactive CLI invocation."""
+"""Pi harness adapter — stdin-driven invocation.
+
+Prompt is piped via stdin.  CLI args are taken from ``config.yaml``
+(harness.pi.args) or the default below.
+"""
 
 from pathlib import Path
 
@@ -9,23 +13,13 @@ class PiAdapter(HarnessAdapter):
     def __init__(self, config: dict) -> None:
         super().__init__("pi", config)
 
-    def prepare_command(
-        self, prompt: str, repo_path: Path, output_file: Path
-    ) -> list[str]:
+    def _default_args(self, repo_path: Path, output_file: Path) -> list[str]:
         return [
-            self.hconfig.get("entrypoint", "pi"),
-            "--batch",
-            "--model",
-            self.llm_config.get("model", "gpt-4o"),
-            "--max-tokens",
-            str(self.llm_config.get("max_tokens", 4096)),
-            "--temperature",
-            str(self.llm_config.get("temperature", 0.0)),
-            "--output-file",
-            str(output_file),
-            "--repo",
-            str(repo_path),
-            prompt,
+            "--model", self.llm_config.get("model", "gpt-4o"),
+            "--max-tokens", str(self.llm_config.get("max_tokens", 4096)),
+            "--temperature", str(self.llm_config.get("temperature", 0.0)),
+            "--output-file", str(output_file),
+            "--repo", str(repo_path),
         ]
 
     def parse_output(self, raw: str) -> dict:
