@@ -147,6 +147,82 @@ make metrics-history            # all historical runs
 | Execution time | `execution_time_s` | Wall time per task |
 | Cost | computed by paper analysis | $ based on model pricing |
 
+### Evaluation / Judging
+
+After the harness agent finishes, an **evaluator** determines pass/fail. The evaluator
+receives the agent's output + workspace and may override the self-reported metrics.
+
+**Data flow:**
+
+```
+adapter.run()                  → agent subprocess → TaskMetrics (self-reported)
+evaluator.evaluate()           → 【overrides】 passed, resolved, build_passed
+SuiteResult                    → aggregation (pass@1, resolve_rate, build_rate)
+results/*.json                 → flat task-level rows consumed by paper_analysis.py
+```
+
+The evaluator writes the **final** `passed`/`resolved`/`build_passed` values on
+`TaskMetrics`.  All downstream consumers — terminal summary, JSON output,
+`paper_analysis.py` (aggregation, McNemar significance, plots, LaTeX) — read
+these same fields.  Switching evaluators changes how pass/fail is determined
+but everything else is identical.
+
+**Evaluator modes** (set via `config/default.yaml` → `evaluation.evaluator`):
+
+| Mode | Behavior | When to use |
+|------|----------|-------------|
+| `self_report` (default) | Trusts the agent's keyword-parsed output (`"result: pass"`, `"all tests passed"`, etc.) | Quick iteration; no external test infra available |
+| `sandbox` | Runs the actual test suite (pytest or custom command) and uses exit code as ground truth | Rigorous benchmarking; paper-ready results |
+
+**Sandbox sub-modes** (`evaluation.mode`):
+
+| Sub-mode | Description |
+|----------|-------------|
+| `command` | Executes a shell command (e.g. `pytest --tb=short`) in the agent's workspace. Pass = exit code 0. |
+| `container` | Runs evaluation inside a Docker container (`python:3.11-slim` by default) for full isolation. Applies `requirements.txt` via `pip install`. |
+
+**Configuration** in `config/default.yaml`:
+
+```yaml
+evaluation:
+  evaluator: self_report          # self_report | sandbox
+  # --- sandbox options ---
+  mode: command                    # command | container
+  command: "pytest --tb=short"     # shell command (command mode)
+  sandbox_image: python:3.11-slim  # Docker image (container mode)
+  timeout: 600                     # seconds
+```
+
+**Per-task output format** — identical regardless of evaluator:
+
+```
+  [1/300] django__django-12345 -> PASS (tokens=18500, api_calls=8, time=45.2s)
+```
+
+A `FAIL` result from `sandbox` mode means the actual test suite failed, not just
+that the agent omitted the keyword phrase.
+
+**Adding a new evaluator:**
+
+1. Create `scripts/evaluators/<name>.py` inheriting `Evaluator` from `base.py`.
+2. Implement `evaluate(metrics, repo_path, work_dir) → TaskMetrics`.
+3. Decorate with `@register_evaluator("<name>")`.
+4. Import the module in `scripts/evaluators/__init__.py`.
+
+Example: a `diff_match` evaluator that compares the agent's git diff against
+the expected patch:
+
+```python
+from scripts.evaluators.base import Evaluator, register_evaluator
+
+@register_evaluator("diff_match")
+class DiffMatchEvaluator(Evaluator):
+    def evaluate(self, metrics, repo_path, work_dir):
+        # git diff → compute similarity → update metrics.passed
+        ...
+        return metrics
+```
+
 ## Paper Analysis Pipeline
 
 The `scripts/paper_analysis.py` script transforms raw `results/*.json` into publication-ready artifacts: tables with Wilson confidence intervals, McNemar significance tests, cost breakdowns, and PDF figures.
@@ -368,6 +444,10 @@ Override variables: `make test HARNESS=pi DATASET=repobench OPENCODE_VERSION=1.1
 │   │   ├── base.py            # Abstract HarnessAdapter (subprocess.run)
 │   │   ├── opencode.py        # OpenCode adapter
 │   │   └── pi.py              # Pi adapter
+│   ├── evaluators/
+│   │   ├── base.py            # Evaluator ABC + registry
+│   │   ├── self_report.py     # Trust agent keywords (default)
+│   │   └── sandbox.py         # Run real tests (pytest/Docker)
 │   └── dataset/
 │       ├── base.py            # TaskInstance model + DatasetLoader ABC
 │       ├── swebench_lite.py   # SWE-Bench Lite JSON/JSONL loader
