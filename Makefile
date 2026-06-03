@@ -18,6 +18,7 @@ PI_VERSION ?= 0.78.0
 install: ## Install project + dev dependencies via uv
 	uv sync
 	uv sync --extra download
+	uv sync --extra paper
 
 download-swebench: ## Download SWE-Bench Lite dataset
 	uv run python scripts/download_datasets.py --dataset swebench-lite
@@ -27,6 +28,17 @@ download-repobench: ## Download RepoBench dataset
 
 download-datasets: ## Download all benchmark datasets
 	uv run python scripts/download_datasets.py --dataset all
+
+# ——— Paper Analysis ——————————————————————————————————————
+
+paper-analyze: ## Run paper analysis (default: results/ -> paper_output/)
+	uv run python scripts/paper_analysis.py
+
+paper-analyze-all: ## Paper analysis with all extras
+	uv run python scripts/paper_analysis.py --plots --latex
+
+paper-analyze-noplot: ## Paper analysis without plots
+	uv run python scripts/paper_analysis.py --no-plots
 
 # ——— Build ——————————————————————————————————————————————
 
