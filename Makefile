@@ -10,6 +10,8 @@ MAX_WORKERS ?= 4
 TIMEOUT ?= 3600
 APT_MIRROR ?= mirrors.aliyun.com
 PIP_INDEX ?= https://mirrors.aliyun.com/pypi/simple/
+OPENCODE_VERSION ?= 1.15.13
+PI_VERSION ?= 0.78.0
 
 # ——— Build ——————————————————————————————————————————————
 
@@ -17,12 +19,16 @@ build: ## Build the Docker image
 	docker build \
 		--build-arg APT_MIRROR=$(APT_MIRROR) \
 		--build-arg PIP_INDEX=$(PIP_INDEX) \
+		--build-arg OPENCODE_VERSION=$(OPENCODE_VERSION) \
+		--build-arg PI_VERSION=$(PI_VERSION) \
 		-t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 build-nocache: ## Build without cache
 	docker build --no-cache \
 		--build-arg APT_MIRROR=$(APT_MIRROR) \
 		--build-arg PIP_INDEX=$(PIP_INDEX) \
+		--build-arg OPENCODE_VERSION=$(OPENCODE_VERSION) \
+		--build-arg PI_VERSION=$(PI_VERSION) \
 		-t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 # ——— Test ————————————————————————————————————————————————
