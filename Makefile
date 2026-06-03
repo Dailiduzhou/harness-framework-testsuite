@@ -1,4 +1,8 @@
-.PHONY: build test clean shell metrics help
+.PHONY: install install-download install-paper install-all \
+        download-swebench download-swebench-test download-repobench download-datasets \
+        paper-analyze paper-analyze-majority paper-analyze-runstats \
+        build build-nocache test test-opencode test-pi test-repobench \
+        metrics metrics-history shell clean clean-containers help
 
 IMAGE_NAME ?= harness-testsuite
 IMAGE_TAG ?= latest
@@ -15,13 +19,23 @@ PI_VERSION ?= 0.78.0
 
 # ——— Local dev (uv) ——————————————————————————————————————
 
-install: ## Install project + dev dependencies via uv
+install: ## Install core dependencies via uv
 	uv sync
+
+install-download: install ## + datasets download extras
 	uv sync --extra download
+
+install-paper: install ## + paper analysis extras (scipy, matplotlib, seaborn)
 	uv sync --extra paper
 
-download-swebench: ## Download SWE-Bench Lite dataset
+install-all: install ## All extras
+	uv sync --extra download --extra paper
+
+download-swebench: ## Download SWE-Bench Lite (dev split, 300 instances)
 	uv run python scripts/download_datasets.py --dataset swebench-lite
+
+download-swebench-test: ## Download SWE-Bench Lite test split (23 instances)
+	uv run python scripts/download_datasets.py --dataset swebench-lite --split test
 
 download-repobench: ## Download RepoBench dataset
 	uv run python scripts/download_datasets.py --dataset repobench
@@ -31,14 +45,14 @@ download-datasets: ## Download all benchmark datasets
 
 # ——— Paper Analysis ——————————————————————————————————————
 
-paper-analyze: ## Run paper analysis (default: results/ -> paper_output/)
-	uv run python scripts/paper_analysis.py
-
-paper-analyze-all: ## Paper analysis with all extras
+paper-analyze: ## Run paper analysis (pool mode, plots + LaTeX)
 	uv run python scripts/paper_analysis.py --plots --latex
 
-paper-analyze-noplot: ## Paper analysis without plots
-	uv run python scripts/paper_analysis.py --no-plots
+paper-analyze-majority: ## Paper analysis with majority-vote aggregation (recommended for paper)
+	uv run python scripts/paper_analysis.py --aggregation majority --plots --latex
+
+paper-analyze-runstats: ## Paper analysis with per-run mean ± std (shows variance)
+	uv run python scripts/paper_analysis.py --aggregation run-stats --plots --latex
 
 # ——— Build ——————————————————————————————————————————————
 
@@ -60,7 +74,7 @@ build-nocache: ## Build without cache
 
 # ——— Test ————————————————————————————————————————————————
 
-test: build ## Run full test suite (default: all harnesses, SWE-Bench Lite)
+test: build ## Run full test suite (all harnesses, SWE-Bench Lite)
 	docker run --rm \
 		--name $(CONTAINER_NAME) \
 		-v $(PWD)/results:/app/results \
@@ -147,4 +161,4 @@ clean-containers: ## Remove dangling containers
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2}'

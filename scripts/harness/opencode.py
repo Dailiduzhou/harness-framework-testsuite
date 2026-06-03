@@ -2,12 +2,12 @@
 
 from pathlib import Path
 
+from scripts.harness.base import HarnessAdapter
 
-class OpenCodeAdapter:
+
+class OpenCodeAdapter(HarnessAdapter):
     def __init__(self, config: dict) -> None:
-        self.name = "opencode"
-        self.hconfig = config.get("harness", {}).get("opencode", {})
-        self.llm_config = config.get("llm", {})
+        super().__init__("opencode", config)
 
     def prepare_command(
         self, prompt: str, repo_path: Path, output_file: Path

@@ -142,20 +142,89 @@ def load_results(results_dir: str) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 
-def build_aggregate(df: pd.DataFrame, pricing_name: str, alpha: float) -> pd.DataFrame:
-    """Build per-harness per-dataset aggregate with CIs."""
+def build_aggregate(
+    df: pd.DataFrame, pricing_name: str, alpha: float, aggregation: str, n_runs: int
+) -> pd.DataFrame:
+    """Build per-harness per-dataset aggregate with CIs.
+
+    aggregation:
+      - pool: raw pool all records (simple; note N will be inflated by repeated runs)
+      - run-stats: per-run pass@1 → mean ± stddev; CI from t-dist if >=3 runs else bootstrap
+      - majority: per-instance majority vote across runs → single deduplicated pass@1
+    """
     pricing = PRICING.get(pricing_name, PRICING["gpt-4o"])
     rows: list[dict] = []
 
     for (harness, ds), g in df.groupby(["harness", "dataset"]):
-        n = len(g)
-        passed = int(g["passed"].sum())
-        resolved = int(g["resolved"].sum())
-        build_ok = int((~g["error"].astype(bool) & g["build_passed"]).sum())
-        build_total = n - int(g["error"].astype(bool).sum())
+        unique_instances = g["instance_id"].nunique()
 
-        pass_lo, pass_hi = wilson_ci(passed, n, alpha)
-        res_lo, res_hi = wilson_ci(resolved, n, alpha)
+        if aggregation == "majority" and n_runs > 1:
+            majority = g.groupby("instance_id")["passed"].mean()
+            majority = (majority > 0.5).astype(int)
+            n = len(majority)
+            passed = int(majority.sum())
+
+            res_maj = g.groupby("instance_id")["resolved"].mean()
+            res_maj = (res_maj > 0.5).astype(int)
+            resolved = int(res_maj.sum())
+
+            lo, hi = wilson_ci(passed, n, alpha)
+            res_lo, res_hi = wilson_ci(resolved, n, alpha)
+            build_ok = int(
+                (
+                    ~g.groupby("instance_id")["error"].first().astype(bool)
+                    & g.groupby("instance_id")["build_passed"].first()
+                ).sum()
+            )
+            build_total = n - int(
+                g.groupby("instance_id")["error"].first().astype(bool).sum()
+            )
+
+        elif aggregation == "run-stats" and n_runs > 1:
+            run_pass_rates = []
+            run_resolve_rates = []
+            for _, rg in g.groupby("run_timestamp"):
+                rn = len(rg)
+                if rn == 0:
+                    continue
+                run_pass_rates.append(rg["passed"].sum() / rn)
+                run_resolve_rates.append(rg["resolved"].sum() / rn)
+
+            mean_p = np.mean(run_pass_rates)
+            std_p = np.std(run_pass_rates, ddof=1) if len(run_pass_rates) > 1 else 0.0
+
+            if len(run_pass_rates) >= 3:
+                t_crit = stats.t.ppf(1 - alpha / 2, len(run_pass_rates) - 1)
+                margin = t_crit * std_p / np.sqrt(len(run_pass_rates))
+                lo, hi = mean_p - margin, mean_p + margin
+            else:
+                lo, hi = np.percentile(
+                    np.random.choice(
+                        run_pass_rates, size=(2000, len(run_pass_rates)), replace=True
+                    ).mean(axis=1),
+                    [alpha / 2 * 100, (1 - alpha / 2) * 100],
+                )
+
+            lo = max(0.0, float(lo))
+            hi = min(1.0, float(hi))
+
+            mean_r = np.mean(run_resolve_rates)
+            res_lo, res_hi = lo, hi
+
+            n = unique_instances
+            passed = int(round(mean_p * n))
+            resolved = int(round(mean_r * n))
+            build_ok = n
+            build_total = n
+
+        else:
+            n = len(g)
+            passed = int(g["passed"].sum())
+            resolved = int(g["resolved"].sum())
+            lo, hi = wilson_ci(passed, n, alpha)
+            res_lo, res_hi = wilson_ci(resolved, n, alpha)
+            build_ok = int((~g["error"].astype(bool) & g["build_passed"]).sum())
+            build_total = n - int(g["error"].astype(bool).sum())
 
         prompt_tokens = int(g["prompt_tokens"].sum())
         completion_tokens = int(g["completion_tokens"].sum())
@@ -168,14 +237,16 @@ def build_aggregate(df: pd.DataFrame, pricing_name: str, alpha: float) -> pd.Dat
                 "harness": harness,
                 "dataset": ds,
                 "n_tasks": n,
+                "n_unique": unique_instances,
+                "n_runs": n_runs,
                 "passed": passed,
                 "resolved": resolved,
                 "build_ok": build_ok,
                 "build_total": build_total,
-                "pass@1": round(passed / n, 4),
-                "pass_lo": round(pass_lo, 4),
-                "pass_hi": round(pass_hi, 4),
-                "resolve_rate": round(resolved / n, 4),
+                "pass@1": round(passed / n, 4) if n else 0,
+                "pass_lo": round(lo, 4),
+                "pass_hi": round(hi, 4),
+                "resolve_rate": round(resolved / n, 4) if n else 0,
                 "resolve_lo": round(res_lo, 4),
                 "resolve_hi": round(res_hi, 4),
                 "build_rate": round(build_ok / build_total, 4) if build_total else 0.0,
@@ -183,29 +254,31 @@ def build_aggregate(df: pd.DataFrame, pricing_name: str, alpha: float) -> pd.Dat
                 "completion_tokens": completion_tokens,
                 "total_tokens": prompt_tokens + completion_tokens,
                 "total_cost": round(total_cost, 4),
-                "avg_tokens": round((prompt_tokens + completion_tokens) / n, 1)
-                if n
+                "avg_tokens": round((prompt_tokens + completion_tokens) / len(g), 1)
+                if len(g)
                 else 0,
                 "avg_time_s": round(g["execution_time_s"].mean(), 1),
                 "avg_api_calls": round(g["api_calls"].mean(), 1),
-                "avg_cost": round(total_cost / n, 4) if n else 0,
+                "avg_cost": round(total_cost / len(g), 4) if len(g) else 0,
             }
         )
 
     return pd.DataFrame(rows).sort_values(["dataset", "harness"])
 
 
-def print_aggregate(agg: pd.DataFrame, pricing_name: str, alpha: float) -> None:
+def print_aggregate(
+    agg: pd.DataFrame, pricing_name: str, alpha: float, aggregation: str
+) -> None:
     """Pretty-print the aggregate table to terminal."""
-    z = stats.norm.ppf(1 - alpha / 2)
     ci_label = f"{int(100 * (1 - alpha))}%"
 
     table = Table(
-        title=f"Aggregate Results (pricing={pricing_name}, CI={ci_label} Wilson)"
+        title=f"Aggregate Results (pricing={pricing_name}, aggregation={aggregation}, CI={ci_label})"
     )
     table.add_column("Harness", style="cyan")
     table.add_column("Dataset")
-    table.add_column("N", justify="right")
+    table.add_column("N (unique)", justify="right")
+    table.add_column("Runs", justify="right")
     table.add_column(f"Pass@1 [{ci_label} CI]", justify="right")
     table.add_column("Resolve", justify="right")
     table.add_column("Build", justify="right")
@@ -218,7 +291,8 @@ def print_aggregate(agg: pd.DataFrame, pricing_name: str, alpha: float) -> None:
         table.add_row(
             r["harness"],
             r["dataset"],
-            str(int(r["n_tasks"])),
+            str(int(r.get("n_unique", r["n_tasks"]))),
+            str(int(r.get("n_runs", 1))),
             pass_str,
             f"{r['resolve_rate']:.4f}",
             f"{r['build_rate']:.4f}",
@@ -235,7 +309,7 @@ def print_aggregate(agg: pd.DataFrame, pricing_name: str, alpha: float) -> None:
 # ---------------------------------------------------------------------------
 
 
-def build_significance(df: pd.DataFrame) -> pd.DataFrame:
+def build_significance(df: pd.DataFrame, aggregation: str = "pool") -> pd.DataFrame:
     """Pairwise McNemar tests between harnesses, per dataset."""
     rows: list[dict] = []
     datasets = sorted(df["dataset"].unique())
@@ -243,6 +317,14 @@ def build_significance(df: pd.DataFrame) -> pd.DataFrame:
 
     for ds in datasets:
         ds_df = df[df["dataset"] == ds]
+
+        if (
+            aggregation in ("majority", "run-stats")
+            and ds_df["run_timestamp"].nunique() > 1
+        ):
+            ds_df = ds_df.groupby(["instance_id", "harness"])["passed"].mean()
+            ds_df = (ds_df > 0.5).astype(int).reset_index()
+
         pivoted = ds_df.pivot_table(
             index="instance_id",
             columns="harness",
@@ -538,6 +620,14 @@ def generate_plots(
 )
 @click.option("--plots/--no-plots", default=True, help="Generate plots")
 @click.option("--latex/--no-latex", default=True, help="Export LaTeX .tex tables")
+@click.option(
+    "--aggregation",
+    "-a",
+    default="pool",
+    type=click.Choice(["pool", "run-stats", "majority"]),
+    show_default=True,
+    help="Multi-run aggregation: pool (raw, N inflated) | run-stats (per-run mean±std) | majority (per-instance vote)",
+)
 def main(
     results_dir: Path,
     output_dir: Path,
@@ -545,6 +635,7 @@ def main(
     alpha: float,
     plots: bool,
     latex: bool,
+    aggregation: str,
 ) -> None:
     df = load_results(str(results_dir))
     if df.empty:
@@ -570,16 +661,27 @@ def main(
         console.print(f"[red]Missing columns in data: {missing}[/red]")
         return
 
+    n_runs = df["run_timestamp"].nunique()
+    if n_runs > 1:
+        console.print(
+            f"[bold cyan]Detected {n_runs} runs. Aggregation mode: {aggregation}[/bold cyan]"
+        )
+        if aggregation == "pool":
+            console.print(
+                "[yellow]  Note: 'pool' inflates N by repeated instances. "
+                "Use --aggregation majority or run-stats for rigor.[/yellow]"
+            )
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     console.print()
     console.rule("[bold]Aggregate Results[/bold]")
-    agg = build_aggregate(df, pricing, alpha)
-    print_aggregate(agg, pricing, alpha)
+    agg = build_aggregate(df, pricing, alpha, aggregation, n_runs)
+    print_aggregate(agg, pricing, alpha, aggregation)
 
     console.print()
     console.rule("[bold]Significance Tests[/bold]")
-    sig = build_significance(df)
+    sig = build_significance(df, aggregation)
     print_significance(sig, alpha)
 
     if latex:

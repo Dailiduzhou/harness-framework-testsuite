@@ -2,12 +2,12 @@
 
 from pathlib import Path
 
+from scripts.harness.base import HarnessAdapter
 
-class PiAdapter:
+
+class PiAdapter(HarnessAdapter):
     def __init__(self, config: dict) -> None:
-        self.name = "pi"
-        self.hconfig = config.get("harness", {}).get("pi", {})
-        self.llm_config = config.get("llm", {})
+        super().__init__("pi", config)
 
     def prepare_command(
         self, prompt: str, repo_path: Path, output_file: Path
