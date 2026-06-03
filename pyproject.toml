@@ -18,3 +18,8 @@ dependencies = [
 download = [
     "datasets>=4.8.5",
 ]
+paper = [
+    "matplotlib>=3.10.9",
+    "scipy>=1.17.1",
+    "seaborn>=0.13.2",
+]

@@ -1,11 +1,16 @@
 # Stage 1: Install harness CLI tools (Node.js)
 FROM node:22-bookworm-slim AS harness-deps
 
-ARG OPENCODE_VERSION=1.15.3
+ARG OPENCODE_VERSION=1.15.13
 ARG PI_VERSION=0.78.0
 
 RUN npm install -g opencode-ai@${OPENCODE_VERSION}
-RUN npm i @earendil-works/pi-coding-agent@${PI_VERSION}
+RUN npm install -g @earendil-works/pi-coding-agent@${PI_VERSION}
+
+RUN mkdir -p /export-bins && \
+    cp -d /usr/local/bin/opencode /export-bins/ && \
+    cp -d /usr/local/bin/pi /export-bins/
+
 # Stage 2: Runtime
 FROM python:3.11-slim-bookworm
 
@@ -38,8 +43,8 @@ RUN if [ -n "${APT_MIRROR}" ]; then \
 WORKDIR /app
 
 COPY --from=harness-deps /usr/local/lib/node_modules /usr/local/lib/node_modules
-COPY --from=harness-deps /usr/local/bin/opencode /usr/local/bin/
-COPY --from=harness-deps /usr/local/bin/pi /usr/local/bin/
+COPY --from=harness-deps /export-bins/ /usr/local/bin/
+COPY --from=harness-deps /usr/local/bin/node /usr/local/bin/node
 
 RUN opencode --version && pi --version
 
