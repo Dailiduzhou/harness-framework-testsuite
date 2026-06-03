@@ -15,17 +15,14 @@ harness:
     enabled: true
     entrypoint: opencode
     timeout_per_task: 600
-    # opencode <project> --model provider/model --prompt "..."
-    # {prompt} in args = prompt goes via CLI flag, NOT stdin
+    cwd: repo
+    # opencode run --model provider/model "prompt"
+    # {prompt} in args = prompt goes via positional arg, NOT stdin
     args:
-      - "{workspace}"
+      - "run"
       - "--model"
       - "{provider}/{model}"
-      - "--prompt"
       - "{prompt}"
-      - "--print-logs"
-      - "--log-level"
-      - "INFO"
   pi:
     enabled: true
     entrypoint: pi
