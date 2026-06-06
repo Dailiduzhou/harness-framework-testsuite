@@ -13,6 +13,7 @@ Supported template placeholders: ``{model}`` ``{provider}`` ``{max_tokens}``
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import time
 from abc import ABC, abstractmethod
@@ -29,8 +30,8 @@ class HarnessAdapter(ABC):
 
     def _template_ctx(self, repo_path: Path, output_file: Path) -> dict[str, str]:
         return {
-            "model": self.llm_config.get("model", "gpt-4o"),
-            "provider": self.llm_config.get("provider", "openai"),
+            "model": self.hconfig.get("model") or self.llm_config.get("model", "gpt-4o"),
+            "provider": self.hconfig.get("provider") or self.llm_config.get("provider", "openai"),
             "max_tokens": str(self.llm_config.get("max_tokens", 4096)),
             "temperature": str(self.llm_config.get("temperature", 0.0)),
             "workspace": str(repo_path),
@@ -96,6 +97,14 @@ class HarnessAdapter(ABC):
             cwd_mode = self.hconfig.get("cwd", "work_dir")
             cwd = repo_path if cwd_mode == "repo" else work_dir
 
+            # Copy global opencode config into task-isolated HOME so opencode
+            # finds its provider config while keeping per-task SQLite databases.
+            global_config = Path("/root/.config/opencode/opencode.json")
+            task_config_dir = Path(work_dir) / ".config" / "opencode"
+            if global_config.exists():
+                task_config_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(global_config, task_config_dir / "opencode.json")
+
             result = subprocess.run(
                 cmd,
                 input=None if prompt_consumed else prompt,
@@ -108,6 +117,8 @@ class HarnessAdapter(ABC):
                     "LLM_API_KEY": self.llm_config.get("api_key", ""),
                     "LLM_API_BASE": self.llm_config.get("api_base", ""),
                     "LLM_MODEL": self.llm_config.get("model", ""),
+                    # Isolate per-task opencode state to avoid SQLite WAL lock contention
+                    "HOME": str(work_dir),
                 },
             )
 

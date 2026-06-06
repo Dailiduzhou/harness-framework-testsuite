@@ -28,7 +28,7 @@ harness:
     entrypoint: pi
     timeout_per_task: 600
     cwd: repo              # pi has no --workspace flag; use repo as cwd
-    # pi -p --provider openai --model gpt-4o --mode json  + prompt on stdin
+    provider: deepseek     # pi uses built-in deepseek provider (overrides global llm.provider)
     args:
       - "-p"
       - "--provider"

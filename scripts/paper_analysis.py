@@ -113,7 +113,7 @@ def mcnemar_paired(test_a: pd.Series, test_b: pd.Series) -> dict[str, float]:
 def load_results(results_dir: str) -> pd.DataFrame:
     """Load all result JSONs and return a flat DataFrame of task-level rows."""
     results_path = Path(results_dir)
-    files = sorted(results_path.glob("*.json"))
+    files = sorted(results_path.glob("*_20260606T052240.json"))
     if not files:
         console.print(f"[yellow]No result files found in {results_dir}[/yellow]")
         return pd.DataFrame()
