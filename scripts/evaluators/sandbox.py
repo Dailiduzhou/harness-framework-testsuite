@@ -65,16 +65,22 @@ class SandboxEvaluator(Evaluator):
                 env={**os.environ, **{k: str(v) for k, v in os.environ.items()}},
             )
             ok = result.returncode == 0
-            metrics.passed = ok
-            metrics.resolved = ok
-            metrics.build_passed = ok
-
-            output = (result.stdout + "\n" + result.stderr).strip()
-            if output and not metrics.raw_output.endswith(output):
-                metrics.raw_output += f"\n\n[eval] {output}"
+            if not metrics.passed:
+                ok = False   # adapter already failed — preserve that verdict
 
             if not ok:
-                metrics.error = result.stderr[:500]
+                metrics.passed = False
+                metrics.resolved = False
+                metrics.build_passed = False
+                msg = result.stderr[:500] if result.stderr else "evaluation failed"
+                if metrics.error:
+                    metrics.error += "\n[eval] " + msg[:300]
+                else:
+                    metrics.error = msg
+            else:
+                output = (result.stdout + "\n" + result.stderr).strip()
+                if output and not metrics.raw_output.endswith(output):
+                    metrics.raw_output += f"\n\n[eval] {output}"
         except subprocess.TimeoutExpired:
             metrics.passed = False
             metrics.resolved = False

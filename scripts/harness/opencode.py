@@ -8,6 +8,10 @@ from pathlib import Path
 
 from scripts.harness.base import HarnessAdapter
 
+# Tool action indicators opencode emits during a run.
+# Each line starting with one of these counts as an API interaction.
+ACTION_INDICATORS = ("> ", "\u2715 ", "\u2192 ", "\u2717 ", "! ")
+
 
 class OpenCodeAdapter(HarnessAdapter):
     def __init__(self, config: dict) -> None:
@@ -29,12 +33,17 @@ class OpenCodeAdapter(HarnessAdapter):
         api_calls = 0
         build_passed = False
         passed = False
+        has_output = False
+        has_error = False
 
         for line in raw.split("\n"):
-            line = line.strip()
+            line_stripped = line.strip()
 
-            if line.startswith("tokens:"):
-                parts = line.split()
+            if line_stripped:
+                has_output = True
+
+            if line_stripped.startswith("tokens:"):
+                parts = line_stripped.split()
                 for p in parts:
                     if p.startswith("total="):
                         token_count = int(p.split("=")[1])
@@ -43,8 +52,8 @@ class OpenCodeAdapter(HarnessAdapter):
                     elif p.startswith("completion="):
                         completion_tokens = int(p.split("=")[1])
 
-            if line.startswith("api_calls:"):
-                parts = line.split()
+            if line_stripped.startswith("api_calls:"):
+                parts = line_stripped.split()
                 if len(parts) > 1:
                     try:
                         api_calls = int(parts[1])
@@ -57,12 +66,34 @@ class OpenCodeAdapter(HarnessAdapter):
             if "result: pass" in line.lower() or "all tests passed" in line.lower():
                 passed = True
 
-        return {
+            for pre in ACTION_INDICATORS:
+                if pre in line_stripped or line_stripped.startswith(pre):
+                    api_calls += 1
+                    break
+
+            if "Error:" in line_stripped or "error:" in line_stripped.lower():
+                has_error = True
+
+        # Fallback: if opencode produced output without explicit pass/fail markers,
+        # treat it as completed (pass/fail determined by exit code in base.py).
+        result: dict = {
             "token_count": token_count,
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "api_calls": api_calls,
             "build_passed": build_passed,
-            "passed": passed,
             "resolved": passed,
         }
+
+        if passed or (has_output and not has_error):
+            pass
+        else:
+            result["passed"] = False
+            result["resolved"] = False
+
+        # Only override passed if we have a definitive signal
+        if has_error:
+            result["passed"] = False
+            result["resolved"] = False
+
+        return result

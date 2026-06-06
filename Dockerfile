@@ -26,7 +26,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
 ARG APT_MIRROR=mirrors.aliyun.com
 ARG PIP_INDEX=https://mirrors.aliyun.com/pypi/simple/
 ARG DEEPSEEK_API_KEY
+ARG DEEPSEEK_BASE_URL
 ENV DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+ENV DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
 
 RUN if [ -n "${APT_MIRROR}" ]; then \
   sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
@@ -40,6 +42,7 @@ RUN if [ -n "${APT_MIRROR}" ]; then \
   jq \
   ca-certificates \
   nodejs \
+  gettext-base \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -56,10 +59,12 @@ RUN pip install --no-cache-dir -i ${PIP_INDEX} -r requirements.txt
 COPY config/ ./config/
 COPY scripts/ ./scripts/
 COPY data/ ./data/
+COPY entrypoint.sh /entrypoint.sh
 
-RUN mkdir -p /app/results
+RUN chmod +x /entrypoint.sh && mkdir -p /app/results /root/.config/opencode
 
 ENV PYTHONPATH=/app
 ENV HARVEST_CONFIG_PATH=/app/config/default.yaml
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "-m", "scripts.run_test", "--help"]
